@@ -8,20 +8,7 @@ class AuthRoutes {
     this.setupRoutes();
   }
 
-  validateUserId(req, res, next) {
-    const userId = req.params.userId;
-    if (!userId || isNaN(userId) || parseInt(userId, 10) <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid user ID format'
-      });
-    }
-    req.params.userId = parseInt(userId, 10);
-    next();
-  }
-
   setupRoutes() {
-
     this.router.post('/login', async (req, res) => {
       try {
         const { email, password } = req.body;
@@ -34,7 +21,7 @@ class AuthRoutes {
         });
       } catch (err) {
         const statusCode = err.statusCode || 500;
-        const message = err.message || 'Server error occurred';
+        const message = err.message || 'Terjadi kesalahan pada server';
 
         res.status(statusCode).json({
           success: false,
@@ -54,7 +41,7 @@ class AuthRoutes {
         });
       } catch (err) {
         const statusCode = err.statusCode || 500;
-        const message = err.message || 'Server error occurred';
+        const message = err.message || 'Terjadi kesalahan pada server';
 
         res.status(statusCode).json({
           success: false,
@@ -70,42 +57,29 @@ class AuthRoutes {
       });
     });
 
-    this.router.get('/user/:userId', 
-      this.verifyTokenMiddleware, 
-      this.validateUserId.bind(this), 
-      async (req, res) => {
-        try {
-          const requestedUserId = req.params.userId;
-          const authenticatedUserId = req.user.userId;
+    this.router.get('/user/:userId', this.verifyTokenMiddleware, async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const user = await this.authController.getProfile(userId);
 
-          if (requestedUserId !== authenticatedUserId) {
-            console.log(`[SECURITY] Access denied for user ${authenticatedUserId} trying to access user ${requestedUserId}`);
-            return res.status(403).json({
-              success: false,
-              message: 'Access denied. You can only access your own profile'
-            });
-          }
+        res.status(200).json({
+          success: true,
+          message: 'User data retrieved successfully',
+          data: user
+        });
+      } catch (err) {
+        const statusCode = err.statusCode || 500;
+        const message = err.message || 'Server error occurred';
 
-          const user = await this.authController.getProfile(requestedUserId);
-          
-          console.log(`[AUDIT] User ${authenticatedUserId} accessed their own profile`);
-
-          res.status(200).json({
-            success: true,
-            message: 'User data retrieved successfully',
-            data: user
-          });
-        } catch (err) {
-          const statusCode = err.statusCode || 500;
-          const message = err.message || 'Server error occurred';
-
-          res.status(statusCode).json({
-            success: false,
-            message
-          });
-        }
+        res.status(statusCode).json({
+          success: false,
+          message
+        });
       }
-    );
+    });
+
+
+    
   }
 
   getRouter() {
